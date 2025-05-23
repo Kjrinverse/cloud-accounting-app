@@ -15,7 +15,7 @@ import TrialBalance from './pages/TrialBalance.tsx';
 import Organizations from './pages/Organizations.tsx';
 
 // Layouts
-import MainLayout from './components/layouts/MainLayout';
+import MainLayout from './components/layouts/MainLayout.tsx';
 
 // Create a ColorModeContext
 export const ColorModeContext = createContext({ toggleColorMode: () => {} });
