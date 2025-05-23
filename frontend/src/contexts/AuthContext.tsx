@@ -1,23 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import api from '../services/api';
 
-interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-}
-
-interface AuthContextType {
-  currentUser: User | null;
-  loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
-  logout: () => void;
-  error: string | null;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext(undefined);
 
 export function useAuth() {
   const context = useContext(AuthContext);
@@ -27,58 +11,118 @@ export function useAuth() {
   return context;
 }
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+export const AuthProvider = ({ children }) => {
+  const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     // Check if user is logged in on page load
     const token = localStorage.getItem('token');
     if (token) {
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      api.get('/auth/me')
-        .then(response => {
+      
+      // Try different endpoint paths for user info
+      const checkAuth = async () => {
+        try {
+          // Try first endpoint pattern
+          console.log('Checking authentication with /auth/me');
+          const response = await api.get('/auth/me');
           setCurrentUser(response.data);
-        })
-        .catch(() => {
-          localStorage.removeItem('token');
-          delete api.defaults.headers.common['Authorization'];
-        })
-        .finally(() => {
+          console.log('Auth check successful:', response.data);
+        } catch (err) {
+          try {
+            // Try second endpoint pattern
+            console.log('Retrying with /api/auth/me');
+            const response = await api.get('/api/auth/me');
+            setCurrentUser(response.data);
+            console.log('Auth check successful with alternate endpoint:', response.data);
+          } catch (err) {
+            try {
+              // Try third endpoint pattern
+              console.log('Retrying with /users/me');
+              const response = await api.get('/users/me');
+              setCurrentUser(response.data);
+              console.log('Auth check successful with users endpoint:', response.data);
+            } catch (err) {
+              console.error('Failed to verify authentication:', err);
+              localStorage.removeItem('token');
+              delete api.defaults.headers.common['Authorization'];
+            }
+          }
+        } finally {
           setLoading(false);
-        });
+        }
+      };
+      
+      checkAuth();
     } else {
       setLoading(false);
     }
   }, []);
 
-  const login = async (email: string, password: string) => {
-    try {
-      setError(null);
-      const response = await api.post('/auth/login', { email, password });
-      const { token, user } = response.data;
-      localStorage.setItem('token', token);
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      setCurrentUser(user);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to login');
-      throw err;
+  const login = async (email, password) => {
+    // Try different endpoint patterns for login
+    const tryLogin = async (endpoint) => {
+      console.log(`Attempting login with endpoint: ${endpoint}`);
+      try {
+        const response = await api.post(endpoint, { email, password });
+        console.log('Login successful:', response.data);
+        const { token, user } = response.data;
+        localStorage.setItem('token', token);
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        setCurrentUser(user);
+        setError(null);
+        return true;
+      } catch (err) {
+        console.error(`Login failed with ${endpoint}:`, err.response?.status, err.response?.data);
+        return false;
+      }
+    };
+
+    // Try different endpoint patterns
+    const endpoints = ['/auth/login', '/api/auth/login', '/users/login', '/login'];
+    
+    for (const endpoint of endpoints) {
+      const success = await tryLogin(endpoint);
+      if (success) return;
     }
+    
+    // If all attempts fail
+    setError('Failed to login. Please check your credentials or contact support.');
+    throw new Error('Login failed with all endpoint attempts');
   };
 
-  const register = async (email: string, password: string, firstName: string, lastName: string) => {
-    try {
-      setError(null);
-      const response = await api.post('/auth/register', { email, password, firstName, lastName });
-      const { token, user } = response.data;
-      localStorage.setItem('token', token);
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      setCurrentUser(user);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to register');
-      throw err;
+  const register = async (email, password, firstName, lastName) => {
+    // Try different endpoint patterns for registration
+    const tryRegister = async (endpoint) => {
+      console.log(`Attempting registration with endpoint: ${endpoint}`);
+      try {
+        const response = await api.post(endpoint, { email, password, firstName, lastName });
+        console.log('Registration successful:', response.data);
+        const { token, user } = response.data;
+        localStorage.setItem('token', token);
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        setCurrentUser(user);
+        setError(null);
+        return true;
+      } catch (err) {
+        console.error(`Registration failed with ${endpoint}:`, err.response?.status, err.response?.data);
+        return false;
+      }
+    };
+
+    // Try different endpoint patterns
+    const endpoints = ['/auth/register', '/api/auth/register', '/users/register', '/register'];
+    
+    for (const endpoint of endpoints) {
+      const success = await tryRegister(endpoint);
+      if (success) return;
     }
+    
+    // If all attempts fail
+    setError('Failed to register. Please try again or contact support.');
+    throw new Error('Registration failed with all endpoint attempts');
   };
 
   const logout = () => {
