@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import api from '../services/api';
+import api from '../services/api.js';
 
+// Define user interface
 const AuthContext = createContext(undefined);
 
 export function useAuth() {
@@ -45,9 +46,25 @@ export const AuthProvider = ({ children }) => {
               setCurrentUser(response.data);
               console.log('Auth check successful with users endpoint:', response.data);
             } catch (err) {
-              console.error('Failed to verify authentication:', err);
-              localStorage.removeItem('token');
-              delete api.defaults.headers.common['Authorization'];
+              try {
+                // Try fourth endpoint pattern
+                console.log('Retrying with /me');
+                const response = await api.get('/me');
+                setCurrentUser(response.data);
+                console.log('Auth check successful with simple endpoint:', response.data);
+              } catch (err) {
+                try {
+                  // Try fifth endpoint pattern
+                  console.log('Retrying with /api/users/me');
+                  const response = await api.get('/api/users/me');
+                  setCurrentUser(response.data);
+                  console.log('Auth check successful with api users endpoint:', response.data);
+                } catch (err) {
+                  console.error('Failed to verify authentication:', err);
+                  localStorage.removeItem('token');
+                  delete api.defaults.headers.common['Authorization'];
+                }
+              }
             }
           }
         } finally {
@@ -81,7 +98,15 @@ export const AuthProvider = ({ children }) => {
     };
 
     // Try different endpoint patterns
-    const endpoints = ['/auth/login', '/api/auth/login', '/users/login', '/login'];
+    const endpoints = [
+      '/auth/login', 
+      '/api/auth/login', 
+      '/users/login', 
+      '/login',
+      '/api/users/login',
+      '/api/login',
+      '/user/login'
+    ];
     
     for (const endpoint of endpoints) {
       const success = await tryLogin(endpoint);
@@ -94,33 +119,46 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = async (email, password, firstName, lastName) => {
-    // Try different endpoint patterns for registration
-    const tryRegister = async (endpoint) => {
-      console.log(`Attempting registration with endpoint: ${endpoint}`);
+    // Define all possible endpoint patterns to try
+    const endpoints = [
+      '/auth/register',
+      '/api/auth/register',
+      '/api/users',
+      '/users',
+      '/register',
+      '/users/register',
+      '/signup',
+      '/api/signup',
+      '/api/register',
+      '/user/register',
+      '/api/users/register'
+    ];
+    
+    // Try each endpoint with detailed logging
+    for (const endpoint of endpoints) {
       try {
+        console.log(`Attempting registration with endpoint: ${endpoint}`);
+        console.log('Registration payload:', { email, password, firstName, lastName });
+        
         const response = await api.post(endpoint, { email, password, firstName, lastName });
-        console.log('Registration successful:', response.data);
+        console.log(`Registration successful with ${endpoint}:`, response.data);
+        
+        // Handle successful registration
         const { token, user } = response.data;
         localStorage.setItem('token', token);
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         setCurrentUser(user);
         setError(null);
-        return true;
+        return;
       } catch (err) {
-        console.error(`Registration failed with ${endpoint}:`, err.response?.status, err.response?.data);
-        return false;
+        console.error(`Registration failed with ${endpoint}:`, err.response?.status);
+        console.error('Error details:', err.response?.data);
+        console.error('Request URL:', err.config?.url);
+        // Continue to the next endpoint if this one failed
       }
-    };
-
-    // Try different endpoint patterns
-    const endpoints = ['/auth/register', '/api/auth/register', '/users/register', '/register'];
-    
-    for (const endpoint of endpoints) {
-      const success = await tryRegister(endpoint);
-      if (success) return;
     }
     
-    // If all attempts fail
+    // If all endpoints failed
     setError('Failed to register. Please try again or contact support.');
     throw new Error('Registration failed with all endpoint attempts');
   };
