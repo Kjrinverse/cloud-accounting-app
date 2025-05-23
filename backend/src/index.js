@@ -21,10 +21,14 @@ const app = express();
 // Middleware
 app.use(helmet()); // Security headers
 app.use(cors({
-  origin: ['https://kjjicorx.manus.space', 'http://localhost:3001'],
+  origin: [
+    'https://kjjicorx.manus.space', 
+    'http://localhost:3001',
+    'https://cloud-accounting-app-frontend-hkauh.ondigitalocean.app'  // Add this line
+  ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
-})); // Enable CORS with specific origins
+} )); // Enable CORS with specific origins
 app.use(express.json()); // Parse JSON bodies
 app.use(morgan('dev')); // HTTP request logging
 
