@@ -1,47 +1,39 @@
-import React from 'react';
-import { Container, Typography, Box, TextField, Button, Paper, Link, Alert } from '@mui/material';
-import { useFormik } from 'formik';
-import * as yup from 'yup';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { 
+  Container, 
+  Box, 
+  Typography, 
+  TextField, 
+  Button, 
+  Paper,
+  Grid,
+  Alert
+} from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
-import { LoginCredentials } from '../types';
-
-// Validation schema
-const validationSchema = yup.object({
-  email: yup
-    .string()
-    .email('Enter a valid email')
-    .required('Email is required'),
-  password: yup
-    .string()
-    .min(8, 'Password should be of minimum 8 characters length')
-    .required('Password is required'),
-});
 
 const Login: React.FC = () => {
-  const { login, state } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
-  // Redirect if already authenticated
-  React.useEffect(() => {
-    if (state.isAuthenticated) {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      setError('');
+      setLoading(true);
+      await login(email, password);
       navigate('/');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to log in');
+    } finally {
+      setLoading(false);
     }
-  }, [state.isAuthenticated, navigate]);
-
-  const formik = useFormik({
-    initialValues: {
-      email: '',
-      password: '',
-    },
-    validationSchema: validationSchema,
-    onSubmit: async (values: LoginCredentials) => {
-      const success = await login(values);
-      if (success) {
-        navigate('/');
-      }
-    },
-  });
+  };
 
   return (
     <Container component="main" maxWidth="xs">
@@ -53,21 +45,17 @@ const Login: React.FC = () => {
           alignItems: 'center',
         }}
       >
-        <Typography component="h1" variant="h4" sx={{ mb: 3 }}>
-          Cloud Accounting
-        </Typography>
-        <Paper elevation={3} sx={{ p: 4, width: '100%' }}>
-          <Typography component="h2" variant="h5" align="center" sx={{ mb: 3 }}>
+        <Paper elevation={3} sx={{ padding: 4, width: '100%' }}>
+          <Typography component="h1" variant="h5" align="center" gutterBottom>
+            Cloud Accounting
+          </Typography>
+          <Typography component="h2" variant="h6" align="center" sx={{ mb: 3 }}>
             Sign In
           </Typography>
           
-          {state.error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {state.error}
-            </Alert>
-          )}
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           
-          <Box component="form" onSubmit={formik.handleSubmit} noValidate sx={{ mt: 1 }}>
+          <Box component="form" onSubmit={handleSubmit} noValidate>
             <TextField
               margin="normal"
               required
@@ -77,10 +65,8 @@ const Login: React.FC = () => {
               name="email"
               autoComplete="email"
               autoFocus
-              value={formik.values.email}
-              onChange={formik.handleChange}
-              error={formik.touched.email && Boolean(formik.errors.email)}
-              helperText={formik.touched.email && formik.errors.email}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
             <TextField
               margin="normal"
@@ -91,25 +77,27 @@ const Login: React.FC = () => {
               type="password"
               id="password"
               autoComplete="current-password"
-              value={formik.values.password}
-              onChange={formik.handleChange}
-              error={formik.touched.password && Boolean(formik.errors.password)}
-              helperText={formik.touched.password && formik.errors.password}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
             />
             <Button
               type="submit"
               fullWidth
               variant="contained"
               sx={{ mt: 3, mb: 2 }}
-              disabled={state.loading}
+              disabled={loading}
             >
-              {state.loading ? 'Signing in...' : 'Sign In'}
+              Sign In
             </Button>
-            <Box sx={{ mt: 2, textAlign: 'center' }}>
-              <Link component={RouterLink} to="/register" variant="body2">
-                {"Don't have an account? Sign Up"}
-              </Link>
-            </Box>
+            <Grid container justifyContent="flex-end">
+              <Grid item>
+                <Link to="/register" style={{ textDecoration: 'none' }}>
+                  <Typography variant="body2" color="primary">
+                    Don't have an account? Sign Up
+                  </Typography>
+                </Link>
+              </Grid>
+            </Grid>
           </Box>
         </Paper>
       </Box>

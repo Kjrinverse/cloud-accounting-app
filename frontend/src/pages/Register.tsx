@@ -1,71 +1,49 @@
-import React from 'react';
-import { Container, Typography, Box, TextField, Button, Paper, Link, Alert, Grid } from '@mui/material';
-import { useFormik } from 'formik';
-import * as yup from 'yup';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { 
+  Container, 
+  Box, 
+  Typography, 
+  TextField, 
+  Button, 
+  Paper,
+  Grid,
+  Alert
+} from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
-import { RegisterData } from '../types';
-
-// Validation schema
-const validationSchema = yup.object({
-  firstName: yup
-    .string()
-    .required('First name is required'),
-  lastName: yup
-    .string()
-    .required('Last name is required'),
-  email: yup
-    .string()
-    .email('Enter a valid email')
-    .required('Email is required'),
-  password: yup
-    .string()
-    .min(8, 'Password should be of minimum 8 characters length')
-    .required('Password is required'),
-  confirmPassword: yup
-    .string()
-    .oneOf([yup.ref('password')], 'Passwords must match')
-    .required('Confirm password is required'),
-  phone: yup
-    .string()
-});
 
 const Register: React.FC = () => {
-  const { register, state } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const [success, setSuccess] = React.useState(false);
+  const { register } = useAuth();
 
-  // Redirect if already authenticated
-  React.useEffect(() => {
-    if (state.isAuthenticated) {
-      navigate('/');
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (password !== confirmPassword) {
+      return setError('Passwords do not match');
     }
-  }, [state.isAuthenticated, navigate]);
-
-  const formik = useFormik({
-    initialValues: {
-      firstName: '',
-      lastName: '',
-      email: '',
-      password: '',
-      confirmPassword: '',
-      phone: ''
-    },
-    validationSchema: validationSchema,
-    onSubmit: async (values) => {
-      const { confirmPassword, ...registerData } = values;
-      const success = await register(registerData as RegisterData);
-      if (success) {
-        setSuccess(true);
-        setTimeout(() => {
-          navigate('/login');
-        }, 2000);
-      }
-    },
-  });
+    
+    try {
+      setError('');
+      setLoading(true);
+      await register(email, password, firstName, lastName);
+      navigate('/');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to create an account');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <Container component="main" maxWidth="sm">
+    <Container component="main" maxWidth="xs">
       <Box
         sx={{
           marginTop: 8,
@@ -74,91 +52,57 @@ const Register: React.FC = () => {
           alignItems: 'center',
         }}
       >
-        <Typography component="h1" variant="h4" sx={{ mb: 3 }}>
-          Cloud Accounting
-        </Typography>
-        <Paper elevation={3} sx={{ p: 4, width: '100%' }}>
-          <Typography component="h2" variant="h5" align="center" sx={{ mb: 3 }}>
+        <Paper elevation={3} sx={{ padding: 4, width: '100%' }}>
+          <Typography component="h1" variant="h5" align="center" gutterBottom>
+            Cloud Accounting
+          </Typography>
+          <Typography component="h2" variant="h6" align="center" sx={{ mb: 3 }}>
             Create Account
           </Typography>
           
-          {state.error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {state.error}
-            </Alert>
-          )}
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           
-          {success && (
-            <Alert severity="success" sx={{ mb: 2 }}>
-              Registration successful! Redirecting to login...
-            </Alert>
-          )}
-          
-          <Box component="form" onSubmit={formik.handleSubmit} noValidate sx={{ mt: 1 }}>
+          <Box component="form" onSubmit={handleSubmit} noValidate>
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
                 <TextField
-                  margin="normal"
+                  autoComplete="given-name"
+                  name="firstName"
                   required
                   fullWidth
                   id="firstName"
                   label="First Name"
-                  name="firstName"
-                  autoComplete="given-name"
                   autoFocus
-                  value={formik.values.firstName}
-                  onChange={formik.handleChange}
-                  error={formik.touched.firstName && Boolean(formik.errors.firstName)}
-                  helperText={formik.touched.firstName && formik.errors.firstName}
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
-                  margin="normal"
                   required
                   fullWidth
                   id="lastName"
                   label="Last Name"
                   name="lastName"
                   autoComplete="family-name"
-                  value={formik.values.lastName}
-                  onChange={formik.handleChange}
-                  error={formik.touched.lastName && Boolean(formik.errors.lastName)}
-                  helperText={formik.touched.lastName && formik.errors.lastName}
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
                 />
               </Grid>
               <Grid item xs={12}>
                 <TextField
-                  margin="normal"
                   required
                   fullWidth
                   id="email"
                   label="Email Address"
                   name="email"
                   autoComplete="email"
-                  value={formik.values.email}
-                  onChange={formik.handleChange}
-                  error={formik.touched.email && Boolean(formik.errors.email)}
-                  helperText={formik.touched.email && formik.errors.email}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                 />
               </Grid>
               <Grid item xs={12}>
                 <TextField
-                  margin="normal"
-                  fullWidth
-                  id="phone"
-                  label="Phone Number"
-                  name="phone"
-                  autoComplete="tel"
-                  value={formik.values.phone}
-                  onChange={formik.handleChange}
-                  error={formik.touched.phone && Boolean(formik.errors.phone)}
-                  helperText={formik.touched.phone && formik.errors.phone}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  margin="normal"
                   required
                   fullWidth
                   name="password"
@@ -166,26 +110,20 @@ const Register: React.FC = () => {
                   type="password"
                   id="password"
                   autoComplete="new-password"
-                  value={formik.values.password}
-                  onChange={formik.handleChange}
-                  error={formik.touched.password && Boolean(formik.errors.password)}
-                  helperText={formik.touched.password && formik.errors.password}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                 />
               </Grid>
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12}>
                 <TextField
-                  margin="normal"
                   required
                   fullWidth
                   name="confirmPassword"
                   label="Confirm Password"
                   type="password"
                   id="confirmPassword"
-                  autoComplete="new-password"
-                  value={formik.values.confirmPassword}
-                  onChange={formik.handleChange}
-                  error={formik.touched.confirmPassword && Boolean(formik.errors.confirmPassword)}
-                  helperText={formik.touched.confirmPassword && formik.errors.confirmPassword}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                 />
               </Grid>
             </Grid>
@@ -194,15 +132,19 @@ const Register: React.FC = () => {
               fullWidth
               variant="contained"
               sx={{ mt: 3, mb: 2 }}
-              disabled={state.loading || success}
+              disabled={loading}
             >
-              {state.loading ? 'Registering...' : 'Register'}
+              Sign Up
             </Button>
-            <Box sx={{ mt: 2, textAlign: 'center' }}>
-              <Link component={RouterLink} to="/login" variant="body2">
-                {"Already have an account? Sign In"}
-              </Link>
-            </Box>
+            <Grid container justifyContent="flex-end">
+              <Grid item>
+                <Link to="/login" style={{ textDecoration: 'none' }}>
+                  <Typography variant="body2" color="primary">
+                    Already have an account? Sign in
+                  </Typography>
+                </Link>
+              </Grid>
+            </Grid>
           </Box>
         </Paper>
       </Box>

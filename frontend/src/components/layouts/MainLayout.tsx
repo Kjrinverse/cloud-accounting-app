@@ -1,34 +1,57 @@
-import React from 'react';
-import { AppBar, Toolbar, Typography, Button, IconButton, Drawer, List, ListItemButton, ListItemIcon, ListItemText, Divider, Box, Container, useTheme, useMediaQuery } from '@mui/material';
-import { Outlet, useNavigate } from 'react-router-dom';
-import MenuIcon from '@mui/icons-material/Menu';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
-import DescriptionIcon from '@mui/icons-material/Description';
-import AssessmentIcon from '@mui/icons-material/Assessment';
-import BusinessIcon from '@mui/icons-material/Business';
-import ExitToAppIcon from '@mui/icons-material/ExitToApp';
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  AppBar,
+  Box,
+  CssBaseline,
+  Divider,
+  Drawer,
+  IconButton,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Toolbar,
+  Typography,
+  Button,
+  Menu,
+  MenuItem
+} from '@mui/material';
+import {
+  Menu as MenuIcon,
+  Dashboard as DashboardIcon,
+  AccountBalance as AccountBalanceIcon,
+  Book as BookIcon,
+  Assessment as AssessmentIcon,
+  BarChart as BarChartIcon,
+  Business as BusinessIcon,
+  AccountCircle as AccountCircleIcon
+} from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 
 const drawerWidth = 240;
 
-const MainLayout: React.FC = () => {
+interface MainLayoutProps {
+  children: React.ReactNode;
+}
+
+const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { state, logout } = useAuth();
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
 
-  const handleNavigation = (path: string) => {
-    navigate(path);
-    if (isMobile) {
-      setMobileOpen(false);
-    }
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
   };
 
   const handleLogout = () => {
@@ -38,11 +61,11 @@ const MainLayout: React.FC = () => {
 
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
-    { text: 'Organizations', icon: <BusinessIcon />, path: '/organizations' },
     { text: 'Chart of Accounts', icon: <AccountBalanceIcon />, path: '/chart-of-accounts' },
-    { text: 'Journal Entries', icon: <DescriptionIcon />, path: '/journal-entries' },
+    { text: 'Journal Entries', icon: <BookIcon />, path: '/journal-entries' },
     { text: 'General Ledger', icon: <AssessmentIcon />, path: '/general-ledger' },
-    { text: 'Trial Balance', icon: <AssessmentIcon />, path: '/trial-balance' },
+    { text: 'Trial Balance', icon: <BarChartIcon />, path: '/trial-balance' },
+    { text: 'Organizations', icon: <BusinessIcon />, path: '/organizations' },
   ];
 
   const drawer = (
@@ -55,36 +78,27 @@ const MainLayout: React.FC = () => {
       <Divider />
       <List>
         {menuItems.map((item) => (
-          <ListItemButton 
-            key={item.text} 
-            onClick={() => handleNavigation(item.path)}
-          >
-            <ListItemIcon>
-              {item.icon}
-            </ListItemIcon>
-            <ListItemText primary={item.text} />
-          </ListItemButton>
+          <ListItem key={item.text} disablePadding>
+            <ListItemButton onClick={() => navigate(item.path)}>
+              <ListItemIcon>
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText primary={item.text} />
+            </ListItemButton>
+          </ListItem>
         ))}
-      </List>
-      <Divider />
-      <List>
-        <ListItemButton onClick={handleLogout}>
-          <ListItemIcon>
-            <ExitToAppIcon />
-          </ListItemIcon>
-          <ListItemText primary="Logout" />
-        </ListItemButton>
       </List>
     </div>
   );
 
   return (
     <Box sx={{ display: 'flex' }}>
+      <CssBaseline />
       <AppBar
         position="fixed"
         sx={{
-          width: { md: `calc(100% - ${drawerWidth}px)` },
-          ml: { md: `${drawerWidth}px` },
+          width: { sm: `calc(100% - ${drawerWidth}px)` },
+          ml: { sm: `${drawerWidth}px` },
         }}
       >
         <Toolbar>
@@ -93,36 +107,42 @@ const MainLayout: React.FC = () => {
             aria-label="open drawer"
             edge="start"
             onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { md: 'none' } }}
+            sx={{ mr: 2, display: { sm: 'none' } }}
           >
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            {menuItems.find(item => item.path === window.location.pathname)?.text || 'Dashboard'}
+            Cloud Accounting
           </Typography>
-          {state.user && (
-            <Typography variant="body1" sx={{ mr: 2 }}>
-              {state.user.firstName} {state.user.lastName}
-            </Typography>
-          )}
-          <Button color="inherit" onClick={handleLogout}>
-            Logout
+          <Button
+            color="inherit"
+            onClick={handleMenuOpen}
+            startIcon={<AccountCircleIcon />}
+          >
+            {currentUser?.firstName} {currentUser?.lastName}
           </Button>
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={handleMenuClose}
+          >
+            <MenuItem onClick={handleLogout}>Logout</MenuItem>
+          </Menu>
         </Toolbar>
       </AppBar>
       <Box
         component="nav"
-        sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
+        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
       >
         <Drawer
           variant="temporary"
           open={mobileOpen}
           onClose={handleDrawerToggle}
           ModalProps={{
-            keepMounted: true, // Better open performance on mobile
+            keepMounted: true, // Better open performance on mobile.
           }}
           sx={{
-            display: { xs: 'block', md: 'none' },
+            display: { xs: 'block', sm: 'none' },
             '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
           }}
         >
@@ -131,7 +151,7 @@ const MainLayout: React.FC = () => {
         <Drawer
           variant="permanent"
           sx={{
-            display: { xs: 'none', md: 'block' },
+            display: { xs: 'none', sm: 'block' },
             '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
           }}
           open
@@ -141,18 +161,10 @@ const MainLayout: React.FC = () => {
       </Box>
       <Box
         component="main"
-        sx={{ 
-          flexGrow: 1, 
-          p: 3, 
-          width: { md: `calc(100% - ${drawerWidth}px)` },
-          minHeight: '100vh',
-          backgroundColor: 'background.default'
-        }}
+        sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` } }}
       >
         <Toolbar />
-        <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-          <Outlet />
-        </Container>
+        {children}
       </Box>
     </Box>
   );

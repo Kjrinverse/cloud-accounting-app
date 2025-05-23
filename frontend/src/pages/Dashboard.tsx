@@ -1,346 +1,138 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  Typography, 
-  Grid, 
-  Paper, 
   Box, 
-  Card, 
-  CardContent, 
+  Typography, 
+  Paper, 
+  Container,
+  Grid,
+  Card,
+  CardContent,
   CardHeader,
   Divider,
-  List,
-  ListItem,
-  ListItemText,
-  CircularProgress,
-  Alert
+  CircularProgress
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
-import apiService from '../services/api';
-import { Organization, AccountBalance } from '../types';
+import api from '../services/api';
 
-const Dashboard: React.FC = () => {
-  const { state } = useAuth();
+const Dashboard = () => {
+  const { currentUser } = useAuth();
+  const [organizations, setOrganizations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
-  const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
-  const [accountSummary, setAccountSummary] = useState<{
-    assets: number;
-    liabilities: number;
-    equity: number;
-    revenue: number;
-    expenses: number;
-  }>({
-    assets: 0,
-    liabilities: 0,
-    equity: 0,
-    revenue: 0,
-    expenses: 0
+  const [error, setError] = useState('');
+  const [stats, setStats] = useState({
+    totalAssets: 0,
+    totalLiabilities: 0,
+    totalEquity: 0,
+    totalRevenue: 0,
+    totalExpenses: 0
   });
-  const [recentEntries, setRecentEntries] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        setError(null);
+        const orgResponse = await api.get('/organizations');
+        setOrganizations(orgResponse.data);
         
-        // Fetch organizations
-        const orgResponse = await apiService.organizations.getAll();
-        if (orgResponse.success && orgResponse.data) {
-          setOrganizations(orgResponse.data);
-          
-          // Select the first organization by default
-          if (orgResponse.data.length > 0) {
-            const defaultOrg = orgResponse.data[0];
-            setSelectedOrg(defaultOrg);
-            
-            // Fetch account balances for the selected organization
-            if (defaultOrg.id) {
-              const balancesResponse = await apiService.generalLedger.getAccountBalances(defaultOrg.id);
-              if (balancesResponse.success && balancesResponse.data) {
-                // Ensure data is an array before passing to calculateAccountSummary
-                const balancesData = Array.isArray(balancesResponse.data) 
-                  ? balancesResponse.data 
-                  : [];
-                calculateAccountSummary(balancesData);
-              }
-              
-              // Fetch recent journal entries
-              const entriesResponse = await apiService.journalEntries.getAll(defaultOrg.id, { 
-                limit: 5, 
-                page: 1 
-              });
-              if (entriesResponse.success && entriesResponse.data) {
-                // Handle the case where data might be an array directly or have a journalEntries property
-                const entriesData = Array.isArray(entriesResponse.data) 
-                  ? entriesResponse.data 
-                  : (entriesResponse.data as any).journalEntries || [];
-                setRecentEntries(entriesData);
-              }
-            }
-          }
+        if (orgResponse.data.length > 0) {
+          const orgId = orgResponse.data[0].id;
+          const statsResponse = await api.get(`/organizations/${orgId}/dashboard/stats`);
+          setStats(statsResponse.data);
         }
       } catch (err) {
-        setError('Failed to load dashboard data. Please try again later.');
+        setError('Failed to load dashboard data');
         console.error(err);
       } finally {
         setLoading(false);
       }
     };
-    
-    fetchDashboardData();
+
+    fetchData();
   }, []);
-  
-  const calculateAccountSummary = (balances: AccountBalance[]) => {
-    const summary = {
-      assets: 0,
-      liabilities: 0,
-      equity: 0,
-      revenue: 0,
-      expenses: 0
-    };
-    
-    balances.forEach(balance => {
-      const amount = balance.baseClosingBalance;
-      
-      switch (balance.accountTypeName.toLowerCase()) {
-        case 'asset':
-          summary.assets += amount;
-          break;
-        case 'liability':
-          summary.liabilities += amount;
-          break;
-        case 'equity':
-          summary.equity += amount;
-          break;
-        case 'revenue':
-          summary.revenue += amount;
-          break;
-        case 'expense':
-          summary.expenses += amount;
-          break;
-      }
-    });
-    
-    setAccountSummary(summary);
-  };
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <CircularProgress />
       </Box>
     );
   }
 
-  if (error) {
-    return (
-      <Alert severity="error" sx={{ mt: 2 }}>
-        {error}
-      </Alert>
-    );
-  }
-
   return (
-    <Box>
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Typography variant="h4" gutterBottom>
         Dashboard
       </Typography>
       
       <Typography variant="h6" gutterBottom>
-        Welcome, {state.user?.firstName} {state.user?.lastName}!
+        Welcome, {currentUser?.firstName} {currentUser?.lastName}
       </Typography>
       
-      {organizations.length === 0 ? (
-        <Alert severity="info" sx={{ mt: 2 }}>
-          You don't have any organizations yet. Create one to get started.
-        </Alert>
-      ) : (
-        <Grid container spacing={3}>
-          {/* Financial Summary */}
-          <Grid item xs={12} md={6}>
-            <Paper elevation={2} sx={{ p: 2, height: '100%' }}>
-              <Typography variant="h6" gutterBottom>
-                Financial Summary
-                {selectedOrg && ` - ${selectedOrg.name}`}
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-              
-              <Grid container spacing={2}>
-                <Grid item xs={6}>
-                  <Card variant="outlined">
-                    <CardHeader title="Assets" sx={{ pb: 0 }} />
-                    <CardContent>
-                      <Typography variant="h5">
-                        ${accountSummary.assets.toFixed(2)}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-                <Grid item xs={6}>
-                  <Card variant="outlined">
-                    <CardHeader title="Liabilities" sx={{ pb: 0 }} />
-                    <CardContent>
-                      <Typography variant="h5">
-                        ${accountSummary.liabilities.toFixed(2)}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-                <Grid item xs={6}>
-                  <Card variant="outlined">
-                    <CardHeader title="Equity" sx={{ pb: 0 }} />
-                    <CardContent>
-                      <Typography variant="h5">
-                        ${accountSummary.equity.toFixed(2)}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-                <Grid item xs={6}>
-                  <Card variant="outlined">
-                    <CardHeader title="Net Income" sx={{ pb: 0 }} />
-                    <CardContent>
-                      <Typography variant="h5">
-                        ${(accountSummary.revenue - accountSummary.expenses).toFixed(2)}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              </Grid>
-            </Paper>
-          </Grid>
-          
-          {/* Recent Journal Entries */}
-          <Grid item xs={12} md={6}>
-            <Paper elevation={2} sx={{ p: 2, height: '100%' }}>
-              <Typography variant="h6" gutterBottom>
-                Recent Journal Entries
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-              
-              {recentEntries.length === 0 ? (
-                <Typography variant="body1">
-                  No journal entries found.
-                </Typography>
-              ) : (
-                <List>
-                  {recentEntries.map((entry) => (
-                    <React.Fragment key={entry.id}>
-                      <ListItem alignItems="flex-start">
-                        <ListItemText
-                          primary={entry.entryNo}
-                          secondary={
-                            <>
-                              <Typography
-                                component="span"
-                                variant="body2"
-                                color="text.primary"
-                              >
-                                {new Date(entry.entryDate).toLocaleDateString()}
-                              </Typography>
-                              {` — ${entry.description || 'No description'}`}
-                            </>
-                          }
-                        />
-                        <Box>
-                          <Typography variant="body2" color="text.secondary">
-                            Status: {entry.status}
-                          </Typography>
-                        </Box>
-                      </ListItem>
-                      <Divider component="li" />
-                    </React.Fragment>
-                  ))}
-                </List>
-              )}
-            </Paper>
-          </Grid>
-          
-          {/* Quick Links */}
-          <Grid item xs={12}>
-            <Paper elevation={2} sx={{ p: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                Quick Links
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-              
-              <Grid container spacing={2}>
-                <Grid item xs={6} md={3}>
-                  <Card 
-                    variant="outlined" 
-                    sx={{ 
-                      textAlign: 'center', 
-                      cursor: 'pointer',
-                      '&:hover': {
-                        backgroundColor: 'action.hover'
-                      }
-                    }}
-                    onClick={() => window.location.href = '/chart-of-accounts'}
-                  >
-                    <CardContent>
-                      <Typography variant="h6">Chart of Accounts</Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-                <Grid item xs={6} md={3}>
-                  <Card 
-                    variant="outlined" 
-                    sx={{ 
-                      textAlign: 'center', 
-                      cursor: 'pointer',
-                      '&:hover': {
-                        backgroundColor: 'action.hover'
-                      }
-                    }}
-                    onClick={() => window.location.href = '/journal-entries'}
-                  >
-                    <CardContent>
-                      <Typography variant="h6">Journal Entries</Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-                <Grid item xs={6} md={3}>
-                  <Card 
-                    variant="outlined" 
-                    sx={{ 
-                      textAlign: 'center', 
-                      cursor: 'pointer',
-                      '&:hover': {
-                        backgroundColor: 'action.hover'
-                      }
-                    }}
-                    onClick={() => window.location.href = '/general-ledger'}
-                  >
-                    <CardContent>
-                      <Typography variant="h6">General Ledger</Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-                <Grid item xs={6} md={3}>
-                  <Card 
-                    variant="outlined" 
-                    sx={{ 
-                      textAlign: 'center', 
-                      cursor: 'pointer',
-                      '&:hover': {
-                        backgroundColor: 'action.hover'
-                      }
-                    }}
-                    onClick={() => window.location.href = '/trial-balance'}
-                  >
-                    <CardContent>
-                      <Typography variant="h6">Trial Balance</Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              </Grid>
-            </Paper>
-          </Grid>
-        </Grid>
+      {error && (
+        <Paper sx={{ p: 2, mb: 2, bgcolor: 'error.light' }}>
+          <Typography color="error">{error}</Typography>
+        </Paper>
       )}
-    </Box>
+      
+      {organizations.length === 0 ? (
+        <Paper sx={{ p: 3, textAlign: 'center' }}>
+          <Typography variant="h6">No organizations found</Typography>
+          <Typography variant="body1">
+            Please create an organization to start using the accounting system.
+          </Typography>
+        </Paper>
+      ) : (
+        <>
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={4}>
+              <Card>
+                <CardHeader title="Assets" />
+                <Divider />
+                <CardContent>
+                  <Typography variant="h4">${stats.totalAssets.toFixed(2)}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Card>
+                <CardHeader title="Liabilities" />
+                <Divider />
+                <CardContent>
+                  <Typography variant="h4">${stats.totalLiabilities.toFixed(2)}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Card>
+                <CardHeader title="Equity" />
+                <Divider />
+                <CardContent>
+                  <Typography variant="h4">${stats.totalEquity.toFixed(2)}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardHeader title="Revenue" />
+                <Divider />
+                <CardContent>
+                  <Typography variant="h4">${stats.totalRevenue.toFixed(2)}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardHeader title="Expenses" />
+                <Divider />
+                <CardContent>
+                  <Typography variant="h4">${stats.totalExpenses.toFixed(2)}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        </>
+      )}
+    </Container>
   );
 };
 

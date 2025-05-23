@@ -1,275 +1,146 @@
-import React, { useEffect, useState } from 'react';
-import { 
-  Typography, 
-  Paper, 
-  Box,
+import React, { useState, useEffect } from 'react';
+import {
+  Container,
+  Typography,
+  Paper,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
+  Box,
+  CircularProgress,
+  Alert,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
-  Grid,
-  CircularProgress,
-  Alert,
   TextField,
-  Button,
-  TablePagination,
-  Divider,
-  Card,
-  CardContent
+  Grid
 } from '@mui/material';
-import SearchIcon from '@mui/icons-material/Search';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import apiService from '../services/api';
-import { LedgerEntry, Account } from '../types';
+import api from '../services/api';
+import { GeneralLedgerEntry } from '../types';
 
 const GeneralLedger: React.FC = () => {
+  const [entries, setEntries] = useState<GeneralLedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [ledgerEntries, setLedgerEntries] = useState<LedgerEntry[]>([]);
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [fiscalPeriods, setFiscalPeriods] = useState<any[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedOrgId, setSelectedOrgId] = useState<number | null>(null);
+  const [error, setError] = useState('');
+  const [selectedOrganization, setSelectedOrganization] = useState('');
   const [organizations, setOrganizations] = useState<any[]>([]);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [totalEntries, setTotalEntries] = useState(0);
-  const [filters, setFilters] = useState({
-    accountId: '',
-    startDate: null as Date | null,
-    endDate: null as Date | null,
-    fiscalPeriodId: ''
-  });
-  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
-  const [accountBalance, setAccountBalance] = useState({
-    openingBalance: 0,
-    closingBalance: 0
-  });
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [selectedAccount, setSelectedAccount] = useState('');
+  const [startDate, setStartDate] = useState<Date | null>(new Date(new Date().getFullYear(), 0, 1));
+  const [endDate, setEndDate] = useState<Date | null>(new Date());
 
-  // Fetch data on component mount
   useEffect(() => {
     const fetchOrganizations = async () => {
       try {
-        const response = await apiService.organizations.getAll();
-        if (response.success && response.data) {
-          setOrganizations(response.data);
-          if (response.data.length > 0) {
-            setSelectedOrgId(response.data[0].id);
-          }
+        const response = await api.get('/organizations');
+        setOrganizations(response.data);
+        if (response.data.length > 0) {
+          setSelectedOrganization(response.data[0].id);
         }
       } catch (err) {
-        setError('Failed to load organizations');
-        console.error(err);
+        setError('Failed to fetch organizations');
       }
     };
 
     fetchOrganizations();
   }, []);
 
-  // Fetch accounts and fiscal periods when organization is selected
   useEffect(() => {
-    if (selectedOrgId) {
-      fetchAccounts();
-      fetchFiscalPeriods();
-    }
-  }, [selectedOrgId]);
-
-  // Fetch ledger entries when filters change
-  useEffect(() => {
-    if (selectedOrgId) {
-      fetchLedgerEntries();
-    }
-  }, [selectedOrgId, page, rowsPerPage, filters.accountId, filters.fiscalPeriodId]);
-
-  const fetchAccounts = async () => {
-    if (!selectedOrgId) return;
-    
-    try {
-      const response = await apiService.accounts.getAll(selectedOrgId, { active: true });
-      if (response.success && response.data) {
-        setAccounts(Array.isArray(response.data) ? response.data : []);
-      }
-    } catch (err) {
-      console.error('Failed to load accounts', err);
-    }
-  };
-
-  const fetchFiscalPeriods = async () => {
-    if (!selectedOrgId) return;
-    
-    // This is a placeholder - in a real app, you would have an API endpoint for fiscal periods
-    setFiscalPeriods([
-      { id: 1, name: 'Q1 2025', startDate: '2025-01-01', endDate: '2025-03-31', isClosed: false },
-      { id: 2, name: 'Q2 2025', startDate: '2025-04-01', endDate: '2025-06-30', isClosed: false }
-    ]);
-  };
-
-  const fetchLedgerEntries = async () => {
-    if (!selectedOrgId) return;
-    
-    try {
-      setLoading(true);
+    const fetchAccounts = async () => {
+      if (!selectedOrganization) return;
       
-      const params: any = {
-        page: page + 1,
-        limit: rowsPerPage
-      };
-      
-      if (filters.accountId) {
-        params.accountId = filters.accountId;
-      }
-      
-      if (filters.startDate) {
-        params.startDate = filters.startDate.toISOString().split('T')[0];
-      }
-      
-      if (filters.endDate) {
-        params.endDate = filters.endDate.toISOString().split('T')[0];
-      }
-      
-      if (filters.fiscalPeriodId) {
-        params.fiscalPeriodId = filters.fiscalPeriodId;
-      }
-      
-      let response;
-      
-      if (filters.accountId) {
-        // Fetch ledger entries for a specific account
-        response = await apiService.generalLedger.getAccountEntries(
-          selectedOrgId, 
-          parseInt(filters.accountId as string),
-          params
-        );
-        
-        // Set selected account
-        const account = accounts.find(a => a.id === parseInt(filters.accountId as string));
-        setSelectedAccount(account || null);
-        
-        // Fetch account balance
-        const balanceResponse = await apiService.generalLedger.getAccountBalances(
-          selectedOrgId,
-          { accountId: filters.accountId, fiscalPeriodId: filters.fiscalPeriodId || undefined }
-        );
-        
-        if (balanceResponse.success && balanceResponse.data) {
-          const accountBalances = Array.isArray(balanceResponse.data) ? balanceResponse.data : [];
-          const accountBalance = accountBalances.find(
-            (b: any) => b.accountId === parseInt(filters.accountId as string)
-          );
-          
-          if (accountBalance) {
-            setAccountBalance({
-              openingBalance: accountBalance.openingBalance,
-              closingBalance: accountBalance.closingBalance
-            });
-          }
+      try {
+        const response = await api.get(`/organizations/${selectedOrganization}/accounts`);
+        setAccounts(response.data);
+        if (response.data.length > 0) {
+          setSelectedAccount(response.data[0].id);
         }
-      } else {
-        // Fetch all ledger entries
-        response = await apiService.generalLedger.getEntries(selectedOrgId, params);
-        setSelectedAccount(null);
+      } catch (err) {
+        setError('Failed to fetch accounts');
       }
+    };
+
+    fetchAccounts();
+  }, [selectedOrganization]);
+
+  useEffect(() => {
+    const fetchGeneralLedger = async () => {
+      if (!selectedOrganization || !selectedAccount || !startDate || !endDate) return;
       
-      if (response.success && response.data) {
-        const responseData = response.data as any;
-        setLedgerEntries(responseData.ledgerEntries || []);
-        setTotalEntries(responseData.pagination?.total || 0);
-      } else {
-        setError(response.error?.message || 'Failed to load general ledger entries');
+      try {
+        setLoading(true);
+        const formattedStartDate = startDate.toISOString().split('T')[0];
+        const formattedEndDate = endDate.toISOString().split('T')[0];
+        
+        const response = await api.get(
+          `/organizations/${selectedOrganization}/general-ledger`, 
+          { params: { accountId: selectedAccount, startDate: formattedStartDate, endDate: formattedEndDate } }
+        );
+        
+        setEntries(response.data);
+        setError('');
+      } catch (err) {
+        setError('Failed to fetch general ledger data');
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      setError('Failed to load general ledger entries');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    };
+
+    fetchGeneralLedger();
+  }, [selectedOrganization, selectedAccount, startDate, endDate]);
+
+  const handleOrganizationChange = (e: React.ChangeEvent<{ value: unknown }>) => {
+    setSelectedOrganization(e.target.value as string);
+    setSelectedAccount('');
   };
 
-  const handleChangePage = (_event: unknown, newPage: number) => {
-    setPage(newPage);
+  const handleAccountChange = (e: React.ChangeEvent<{ value: unknown }>) => {
+    setSelectedAccount(e.target.value as string);
   };
 
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
+  const getAccountName = () => {
+    const account = accounts.find(acc => acc.id === selectedAccount);
+    return account ? `${account.code} - ${account.name}` : '';
   };
-
-  const handleFilterChange = (field: string, value: any) => {
-    setFilters(prev => ({ ...prev, [field]: value }));
-    setPage(0); // Reset to first page when changing filters
-  };
-
-  const handleSearch = () => {
-    fetchLedgerEntries();
-  };
-
-  const handleClearFilters = () => {
-    setFilters({
-      accountId: '',
-      startDate: null,
-      endDate: null,
-      fiscalPeriodId: ''
-    });
-    setPage(0);
-  };
-
-  if (loading && ledgerEntries.length === 0) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
 
   return (
-    <Box>
-      <Typography variant="h4" gutterBottom>
-        General Ledger
-      </Typography>
-      
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-      
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={3}>
+    <Container maxWidth="lg">
+      <Typography variant="h4" gutterBottom>General Ledger</Typography>
+
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
             <FormControl fullWidth>
-              <InputLabel id="organization-select-label">Organization</InputLabel>
+              <InputLabel>Organization</InputLabel>
               <Select
-                labelId="organization-select-label"
-                value={selectedOrgId || ''}
+                value={selectedOrganization}
                 label="Organization"
-                onChange={(e) => setSelectedOrgId(e.target.value as number)}
+                onChange={handleOrganizationChange}
               >
                 {organizations.map((org) => (
-                  <MenuItem key={org.id} value={org.id}>
-                    {org.name}
-                  </MenuItem>
+                  <MenuItem key={org.id} value={org.id}>{org.name}</MenuItem>
                 ))}
               </Select>
             </FormControl>
           </Grid>
-          
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} md={6}>
             <FormControl fullWidth>
-              <InputLabel id="account-select-label">Account</InputLabel>
+              <InputLabel>Account</InputLabel>
               <Select
-                labelId="account-select-label"
-                value={filters.accountId}
+                value={selectedAccount}
                 label="Account"
-                onChange={(e) => handleFilterChange('accountId', e.target.value)}
+                onChange={handleAccountChange}
+                disabled={accounts.length === 0}
               >
-                <MenuItem value="">All Accounts</MenuItem>
                 {accounts.map((account) => (
                   <MenuItem key={account.id} value={account.id}>
                     {account.code} - {account.name}
@@ -278,169 +149,74 @@ const GeneralLedger: React.FC = () => {
               </Select>
             </FormControl>
           </Grid>
-          
-          <Grid item xs={12} md={3}>
-            <FormControl fullWidth>
-              <InputLabel id="fiscal-period-label">Fiscal Period</InputLabel>
-              <Select
-                labelId="fiscal-period-label"
-                value={filters.fiscalPeriodId}
-                label="Fiscal Period"
-                onChange={(e) => handleFilterChange('fiscalPeriodId', e.target.value)}
-              >
-                <MenuItem value="">All Periods</MenuItem>
-                {fiscalPeriods.map((period) => (
-                  <MenuItem key={period.id} value={period.id}>
-                    {period.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          
-          <Grid item xs={12} md={3}>
-            <LocalizationProvider dateAdapter={AdapterDateFns as any}>
+          <Grid item xs={12} md={6}>
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
               <DatePicker
                 label="Start Date"
-                value={filters.startDate}
-                onChange={(date) => handleFilterChange('startDate', date)}
-                renderInput={(params) => <TextField {...params} fullWidth size="small" />}
+                value={startDate}
+                onChange={(date) => setStartDate(date)}
+                sx={{ width: '100%' }}
               />
             </LocalizationProvider>
           </Grid>
-          
-          <Grid item xs={12} md={3}>
-            <LocalizationProvider dateAdapter={AdapterDateFns as any}>
+          <Grid item xs={12} md={6}>
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
               <DatePicker
                 label="End Date"
-                value={filters.endDate}
-                onChange={(date) => handleFilterChange('endDate', date)}
-                renderInput={(params) => <TextField {...params} fullWidth size="small" />}
+                value={endDate}
+                onChange={(date) => setEndDate(date)}
+                sx={{ width: '100%' }}
               />
             </LocalizationProvider>
-          </Grid>
-          
-          <Grid item xs={12} md={3}>
-            <Button
-              variant="contained"
-              startIcon={<SearchIcon />}
-              onClick={handleSearch}
-              fullWidth
-            >
-              Search
-            </Button>
-          </Grid>
-          
-          <Grid item xs={12} md={3}>
-            <Button
-              variant="outlined"
-              onClick={handleClearFilters}
-              fullWidth
-            >
-              Clear Filters
-            </Button>
           </Grid>
         </Grid>
       </Paper>
-      
+
       {selectedAccount && (
-        <Paper sx={{ p: 2, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Account Details
-          </Typography>
-          
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={4}>
-              <Card variant="outlined">
-                <CardContent>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Account
-                  </Typography>
-                  <Typography variant="h6">
-                    {selectedAccount.code} - {selectedAccount.name}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            
-            <Grid item xs={12} md={4}>
-              <Card variant="outlined">
-                <CardContent>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Opening Balance
-                  </Typography>
-                  <Typography variant="h6">
-                    {accountBalance.openingBalance.toFixed(2)}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            
-            <Grid item xs={12} md={4}>
-              <Card variant="outlined">
-                <CardContent>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Closing Balance
-                  </Typography>
-                  <Typography variant="h6">
-                    {accountBalance.closingBalance.toFixed(2)}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
-        </Paper>
+        <Typography variant="h6" gutterBottom>
+          Account: {getAccountName()}
+        </Typography>
       )}
-      
-      {ledgerEntries.length === 0 ? (
-        <Alert severity="info">
-          No general ledger entries found for the selected criteria.
-        </Alert>
+
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+          <CircularProgress />
+        </Box>
       ) : (
-        <>
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Date</TableCell>
+                <TableCell>Reference</TableCell>
+                <TableCell>Description</TableCell>
+                <TableCell align="right">Debit</TableCell>
+                <TableCell align="right">Credit</TableCell>
+                <TableCell align="right">Balance</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {entries.length === 0 ? (
                 <TableRow>
-                  <TableCell>Date</TableCell>
-                  {!filters.accountId && <TableCell>Account</TableCell>}
-                  <TableCell>Description</TableCell>
-                  <TableCell>Reference</TableCell>
-                  <TableCell align="right">Debit</TableCell>
-                  <TableCell align="right">Credit</TableCell>
-                  <TableCell align="right">Balance</TableCell>
+                  <TableCell colSpan={6} align="center">No entries found</TableCell>
                 </TableRow>
-              </TableHead>
-              <TableBody>
-                {ledgerEntries.map((entry) => (
-                  <TableRow key={entry.id}>
-                    <TableCell>{new Date(entry.transactionDate).toLocaleDateString()}</TableCell>
-                    {!filters.accountId && (
-                      <TableCell>{entry.accountCode} - {entry.accountName}</TableCell>
-                    )}
-                    <TableCell>{entry.description || '-'}</TableCell>
-                    <TableCell>{entry.journalEntryReference || '-'}</TableCell>
-                    <TableCell align="right">{entry.debitAmount > 0 ? entry.debitAmount.toFixed(2) : '-'}</TableCell>
-                    <TableCell align="right">{entry.creditAmount > 0 ? entry.creditAmount.toFixed(2) : '-'}</TableCell>
-                    <TableCell align="right">{entry.balance.toFixed(2)}</TableCell>
+              ) : (
+                entries.map((entry, index) => (
+                  <TableRow key={index}>
+                    <TableCell>{new Date(entry.date).toLocaleDateString()}</TableCell>
+                    <TableCell>{entry.reference}</TableCell>
+                    <TableCell>{entry.description}</TableCell>
+                    <TableCell align="right">{entry.debit > 0 ? `$${entry.debit.toFixed(2)}` : ''}</TableCell>
+                    <TableCell align="right">{entry.credit > 0 ? `$${entry.credit.toFixed(2)}` : ''}</TableCell>
+                    <TableCell align="right">${entry.balance.toFixed(2)}</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          
-          <TablePagination
-            component="div"
-            count={totalEntries}
-            page={page}
-            onPageChange={handleChangePage}
-            rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-            rowsPerPageOptions={[5, 10, 25, 50]}
-          />
-        </>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
       )}
-    </Box>
+    </Container>
   );
 };
 
