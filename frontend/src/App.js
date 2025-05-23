@@ -6,13 +6,13 @@ import { useAuth } from './contexts/AuthContext.js';
 
 // Pages - using .tsx extensions
 import Login from './pages/Login.tsx';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import ChartOfAccounts from './pages/ChartOfAccounts';
-import JournalEntries from './pages/JournalEntries';
-import GeneralLedger from './pages/GeneralLedger';
-import TrialBalance from './pages/TrialBalance';
-import Organizations from './pages/Organizations';
+import Register from './pages/Register.tsx';
+import Dashboard from './pages/Dashboard.tsx';
+import ChartOfAccounts from './pages/ChartOfAccounts.tsx';
+import JournalEntries from './pages/JournalEntries.tsx';
+import GeneralLedger from './pages/GeneralLedger.tsx';
+import TrialBalance from './pages/TrialBalance.tsx';
+import Organizations from './pages/Organizations.tsx';
 
 // Layouts
 import MainLayout from './components/layouts/MainLayout';
