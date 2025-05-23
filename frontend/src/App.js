@@ -5,7 +5,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { useAuth } from './contexts/AuthContext.js';
 
 // Pages - using .tsx extensions
-import Login from './pages/Login';
+import Login from './pages/Login.tsx';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import ChartOfAccounts from './pages/ChartOfAccounts';
