@@ -1,4 +1,4 @@
-# Database Configuration
+// Database Configuration
 module.exports = {
   development: {
     client: 'postgresql',
