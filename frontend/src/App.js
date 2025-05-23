@@ -4,18 +4,18 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { useAuth } from './contexts/AuthContext.js';
 
-// Pages
-import Login from './pages/Login.js';
-import Register from './pages/Register.js';
-import Dashboard from './pages/Dashboard.js';
-import ChartOfAccounts from './pages/ChartOfAccounts.js';
-import JournalEntries from './pages/JournalEntries.js';
-import GeneralLedger from './pages/GeneralLedger.js';
-import TrialBalance from './pages/TrialBalance.js';
-import Organizations from './pages/Organizations.js';
+// Pages - using .tsx extensions
+import Login from './pages/Login';
+import Register from './pages/Register';
+import Dashboard from './pages/Dashboard';
+import ChartOfAccounts from './pages/ChartOfAccounts';
+import JournalEntries from './pages/JournalEntries';
+import GeneralLedger from './pages/GeneralLedger';
+import TrialBalance from './pages/TrialBalance';
+import Organizations from './pages/Organizations';
 
 // Layouts
-import MainLayout from './components/layouts/MainLayout.js';
+import MainLayout from './components/layouts/MainLayout';
 
 // Create a ColorModeContext
 export const ColorModeContext = createContext({ toggleColorMode: () => {} });
