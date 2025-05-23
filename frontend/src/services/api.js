@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create API instance with configurable base URL
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:3000',
+  baseURL: process.env.REACT_APP_API_URL || 'https://accounting-app-klwxs.ondigitalocean.app',
   headers: {
     'Content-Type': 'application/json',
   },
