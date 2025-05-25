@@ -96,7 +96,7 @@ const assignRoleToUser = async (organizationId, userId, roleId) => {
       });
   } else {
     // Create new organization user with role
-    await db('organization_users').insert({
+    await db('user_organizations').insert({
       organization_id: organizationId,
       user_id: userId,
       role_id: roleId,

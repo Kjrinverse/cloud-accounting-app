@@ -40,9 +40,9 @@ const GeneralLedger: React.FC = () => {
     const fetchOrganizations = async () => {
       try {
         const response = await api.get('/organizations');
-        setOrganizations(response.data);
-        if (response.data.length > 0) {
-          setSelectedOrganization(response.data[0].id);
+        setOrganizations(response.data.data);
+        if (response.data.data.length > 0) {
+          setSelectedOrganization(response.data.data[0].id);
         }
       } catch (err) {
         setError('Failed to fetch organizations');
@@ -58,9 +58,9 @@ const GeneralLedger: React.FC = () => {
       
       try {
         const response = await api.get(`/organizations/${selectedOrganization}/accounts`);
-        setAccounts(response.data);
-        if (response.data.length > 0) {
-          setSelectedAccount(response.data[0].id);
+        setAccounts(response.data.data);
+        if (response.data.data.length > 0) {
+          setSelectedAccount(response.data.data[0].id);
         }
       } catch (err) {
         setError('Failed to fetch accounts');
@@ -84,7 +84,7 @@ const GeneralLedger: React.FC = () => {
           { params: { accountId: selectedAccount, startDate: formattedStartDate, endDate: formattedEndDate } }
         );
         
-        setEntries(response.data);
+        setEntries(response.data.data);
         setError('');
       } catch (err) {
         setError('Failed to fetch general ledger data');

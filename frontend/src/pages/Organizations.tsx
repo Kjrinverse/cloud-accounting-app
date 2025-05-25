@@ -48,7 +48,7 @@ const Organizations: React.FC = () => {
       try {
         setLoading(true);
         const response = await api.get('/organizations');
-        setOrganizations(response.data);
+        setOrganizations(response.data.data);
         setError('');
       } catch (err) {
         setError('Failed to fetch organizations');
@@ -96,7 +96,7 @@ const Organizations: React.FC = () => {
         ...newOrganization,
         fiscalYearStart: newOrganization.fiscalYearStart.toISOString().split('T')[0]
       });
-      setOrganizations([...organizations, response.data]);
+      setOrganizations([...organizations, response.data.data]);
       handleCloseDialog();
     } catch (err) {
       setError('Failed to create organization');

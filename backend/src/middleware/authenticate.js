@@ -1,7 +1,6 @@
 // Authentication middleware
 const jwt = require('jsonwebtoken');
 const db = require('../db');
-const config = require('../config/database');
 
 /**
  * Middleware to authenticate JWT tokens
