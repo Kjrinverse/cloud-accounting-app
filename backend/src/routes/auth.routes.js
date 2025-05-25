@@ -198,10 +198,10 @@ router.get('/me', authenticate, async (req, res, next) => {
     }
     
     // Get user organizations
-    const organizations = await db('organization_users')
-      .join('organizations', 'organization_users.organization_id', 'organizations.id')
-      .where('organization_users.user_id', req.userId)
-      .select('organizations.id', 'organizations.name', 'organization_users.role');
+    const organizations = await db('user_organizations')
+      .join('organizations', 'user_organizations.organization_id', 'organizations.id')
+      .where('user_organizations.user_id', req.userId)
+      .select('organizations.id', 'organizations.name', 'user_organizations.role');
     
     // Send response
     res.json({
