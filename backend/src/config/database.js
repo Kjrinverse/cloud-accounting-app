@@ -71,5 +71,6 @@ module.exports = {
     directory: '../migrations'
   },
   debug: process.env.NODE_ENV === 'development'
-}
+ }
+   
 
