@@ -2,18 +2,6 @@
 const validateEnv = require('./validate-env');
 validateEnv();
 
-// Add a simple health check endpoint
-app.get('/api/v1/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    message: 'Server is running',
-    env: {
-      nodeEnv: process.env.NODE_ENV,
-      dbConfigured: !!process.env.DB_HOST
-    }
-  });
-});
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
