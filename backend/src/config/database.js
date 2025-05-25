@@ -57,20 +57,19 @@ module.exports = {
     statement_timeout: 30000
   },
   pool: {
-    min: 0,  // Start with no connections
-    max: 5,  // Reduce maximum connections
-    acquireTimeoutMillis: 60000,  // Increase timeout to 60 seconds
+    min: 0,
+    max: 5,
+    acquireTimeoutMillis: 60000,
     createTimeoutMillis: 60000,
     idleTimeoutMillis: 30000,
     reapIntervalMillis: 1000,
     createRetryIntervalMillis: 100,
-    propagateCreateError: false  // Don't crash on connection errors
+    propagateCreateError: false
+  },
+  migrations: {
+    tableName: 'knex_migrations',
+    directory: '../migrations'
   },
   debug: process.env.NODE_ENV === 'development'
-},
-    migrations: {
-      tableName: 'knex_migrations',
-      directory: '../migrations'
-    }
-  }
-};
+}
+
