@@ -1,7 +1,7 @@
 // Authentication middleware
 const jwt = require('jsonwebtoken');
 const db = require('../db');
-const config = require('../config/database');
+
 
 /**
  * Middleware to authenticate JWT tokens
@@ -23,7 +23,7 @@ const authenticate = async (req, res, next) => {
     const token = authHeader.split(' ')[1];
     
     // Verify token
-    const decoded = jwt.verify(token, config.jwtSecret);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     // Check if user exists
     const user = await db('users')
@@ -52,10 +52,10 @@ const authenticate = async (req, res, next) => {
     }
     
     // Get user organizations and roles
-    const userOrganizations = await db('organization_users')
-      .join('organizations', 'organization_users.organization_id', 'organizations.id')
-      .join('roles', 'organization_users.role_id', 'roles.id')
-      .where('organization_users.user_id', user.id)
+    const userOrganizations = await db('user_organizations')
+      .join('organizations', 'user_organizations.organization_id', 'organizations.id')
+      .join('roles', 'user_organizations.role_id', 'roles.id')
+      .where('user_organizations.user_id', user.id)
       .select(
         'organizations.id',
         'organizations.name',
