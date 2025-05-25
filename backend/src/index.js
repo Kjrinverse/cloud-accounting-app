@@ -65,19 +65,46 @@ app.get('/', (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error('Error:', err);
   
-  const statusCode = err.statusCode || 500;
-  const errorResponse = {
+  // Handle database connection errors
+  if (
+    err.code === 'ECONNREFUSED' || 
+    err.message.includes('timeout') || 
+    err.message.includes('pool') ||
+    err.message.includes('connection')
+  ) {
+    return res.status(503).json({
+      success: false,
+      error: {
+        code: 'DATABASE_ERROR',
+        message: 'Database service is currently unavailable. Please try again later.',
+        details: process.env.NODE_ENV === 'development' ? err.message : undefined
+      }
+    });
+  }
+  
+  // Handle validation errors
+  if (err.name === 'ValidationError') {
+    return res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid input data',
+        details: err.details
+      }
+    });
+  }
+  
+  // Handle other errors
+  res.status(500).json({
     success: false,
     error: {
-      code: err.code || 'INTERNAL_SERVER_ERROR',
-      message: err.message || 'An unexpected error occurred',
-      details: err.details || null
+      code: 'SERVER_ERROR',
+      message: 'An unexpected error occurred',
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
     }
-  };
-  
-  res.status(statusCode).json(errorResponse);
+  });
 });
 
 // Start server
