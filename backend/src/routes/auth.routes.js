@@ -1,4 +1,5 @@
 // Auth routes
+const { DatabaseError } = require('pg');
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
@@ -28,52 +29,80 @@ router.post('/register', validate(registerSchema), async (req, res, next) => {
   try {
     const { email, password, firstName, lastName, phone } = req.body;
     
-    // Check if user already exists
-    const existingUser = await db('users').where({ email }).first();
-    if (existingUser) {
-      return res.status(409).json({
-        success: false,
-        error: {
-          code: 'USER_EXISTS',
-          message: 'A user with this email already exists'
-        }
-      });
-    }
+    // Use a transaction for all database operations
+    const result = await db.transaction(async (trx) => {
+      // Check if user already exists
+      const existingUser = await trx('users').where({ email }).first();
+      if (existingUser) {
+        return res.status(409).json({
+          success: false,
+          error: {
+            code: 'USER_EXISTS',
+            message: 'A user with this email already exists'
+          }
+        });
+      }
+      
+      // Hash password
+      const saltRounds = 10;
+      const passwordHash = await bcrypt.hash(password, saltRounds);
+      
+      // Create user
+      const [userId] = await trx('users').insert({
+        email,
+        password_hash: passwordHash,
+        first_name: firstName,
+        last_name: lastName,
+        phone,
+        is_active: true,
+        created_at: new Date(),
+        updated_at: new Date()
+      }).returning('id');
+      
+      // Get created user
+      const user = await trx('users')
+        .where({ id: userId })
+        .select('id', 'email', 'first_name', 'last_name', 'created_at')
+        .first();
+      
+      return user;
+    });
     
-    // Hash password
-    const saltRounds = 10;
-    const passwordHash = await bcrypt.hash(password, saltRounds);
-    
-    // Create user
-    const [userId] = await db('users').insert({
-      email,
-      password_hash: passwordHash,
-      first_name: firstName,
-      last_name: lastName,
-      phone,
-      is_active: true,
-      created_at: new Date(),
-      updated_at: new Date()
-    }).returning('id');
-    
-    // Get created user
-    const user = await db('users')
-      .where({ id: userId })
-      .select('id', 'email', 'first_name', 'last_name', 'created_at')
-      .first();
-    
+    // Send response after transaction completes
     res.status(201).json({
       success: true,
       message: 'User registered successfully',
       data: {
-        id: user.id,
-        email: user.email,
-        firstName: user.first_name,
-        lastName: user.last_name,
-        createdAt: user.created_at
+        id: result.id,
+        email: result.email,
+        firstName: result.first_name,
+        lastName: result.last_name,
+        createdAt: result.created_at
       }
     });
   } catch (error) {
+    console.error('Registration error:', error);
+    if (error instanceof DatabaseError) {
+    return res.status(500).json({
+      success: false,
+      error: {
+        code: 'DATABASE_ERROR',
+        message: 'Database operation failed. Please try again later.',
+        details: process.env.NODE_ENV === 'development' ? error.message : null
+      }
+    });
+  }
+  
+  // Handle connection pool errors
+  if (error.message && error.message.includes('pool')) {
+    return res.status(503).json({
+      success: false,
+      error: {
+        code: 'SERVICE_UNAVAILABLE',
+        message: 'Database service is currently unavailable. Please try again later.'
+      }
+    });
+  }
     next(error);
   }
 });
