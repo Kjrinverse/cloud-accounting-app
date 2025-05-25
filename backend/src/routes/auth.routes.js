@@ -1,14 +1,10 @@
-// Auth routes
-const { DatabaseError } = require('pg');
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const db = require('../db');
-
-// Validation middleware
 const Joi = require('joi');
-const validate = require('../middleware/validate');
+const db = require('../db');
+const authenticate = require('../middleware/authenticate');
 
 // Validation schemas
 const registerSchema = Joi.object({
@@ -24,97 +20,109 @@ const loginSchema = Joi.object({
   password: Joi.string().required()
 });
 
+// Validation middleware
+const validate = (schema) => {
+  return (req, res, next) => {
+    const { error } = schema.validate(req.body);
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid input data',
+          details: error.details
+        }
+      });
+    }
+    next();
+  };
+};
+
 // Register a new user
 router.post('/register', validate(registerSchema), async (req, res, next) => {
+  // Initialize transaction variable
+  let trx;
+  
   try {
+    // Create a transaction
+    trx = await db.transaction();
     const { email, password, firstName, lastName, phone } = req.body;
     
-    // Use a transaction for all database operations
-    const result = await db.transaction(async (trx) => {
-      // Check if user already exists
-      const existingUser = await trx('users').where({ email }).first();
-      if (existingUser) {
-        return res.status(409).json({
-          success: false,
-          error: {
-            code: 'USER_EXISTS',
-            message: 'A user with this email already exists'
-          }
-        });
-      }
-      
-      // Hash password
-      const saltRounds = 10;
-      const passwordHash = await bcrypt.hash(password, saltRounds);
-      
-      // Create user
-      const [userId] = await trx('users').insert({
-        email,
-        password_hash: passwordHash,
-        first_name: firstName,
-        last_name: lastName,
-        phone,
-        is_active: true,
-        created_at: new Date(),
-        updated_at: new Date()
-      }).returning('id');
-      
-      // Get created user
-      const user = await trx('users')
-        .where({ id: userId })
-        .select('id', 'email', 'first_name', 'last_name', 'created_at')
-        .first();
-      
-      return user;
-    });
+    // Check if user already exists
+    const existingUser = await trx('users').where({ email }).first();
+    if (existingUser) {
+      await trx.rollback();
+      return res.status(409).json({
+        success: false,
+        error: {
+          code: 'USER_EXISTS',
+          message: 'A user with this email already exists'
+        }
+      });
+    }
     
-    // Send response after transaction completes
+    // Hash password
+    const saltRounds = 10;
+    const passwordHash = await bcrypt.hash(password, saltRounds);
+    
+    // Create user
+    const [userId] = await trx('users').insert({
+      email,
+      password_hash: passwordHash,
+      first_name: firstName,
+      last_name: lastName,
+      phone,
+      is_active: true,
+      created_at: new Date(),
+      updated_at: new Date()
+    }).returning('id');
+    
+    // Get created user
+    const user = await trx('users')
+      .where({ id: userId })
+      .select('id', 'email', 'first_name', 'last_name', 'created_at')
+      .first();
+    
+    // Commit transaction
+    await trx.commit();
+    
+    // Send response
     res.status(201).json({
       success: true,
       message: 'User registered successfully',
       data: {
-        id: result.id,
-        email: result.email,
-        firstName: result.first_name,
-        lastName: result.last_name,
-        createdAt: result.created_at
+        id: user.id,
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        createdAt: user.created_at
       }
     });
   } catch (error) {
+    // Rollback transaction on error if it exists
+    if (trx) await trx.rollback();
+    
+    // Log detailed error information
     console.error('Registration error:', error);
-    if (error instanceof DatabaseError) {
-    return res.status(500).json({
-      success: false,
-      error: {
-        code: 'DATABASE_ERROR',
-        message: 'Database operation failed. Please try again later.',
-        details: process.env.NODE_ENV === 'development' ? error.message : null
-      }
-    });
-  }
-  
-  // Handle connection pool errors
-  if (error.message && error.message.includes('pool')) {
-    return res.status(503).json({
-      success: false,
-      error: {
-        code: 'SERVICE_UNAVAILABLE',
-        message: 'Database service is currently unavailable. Please try again later.'
-      }
-    });
-  }
+    
+    // Pass to error middleware
     next(error);
   }
 });
 
-// Login
+// Login user
 router.post('/login', validate(loginSchema), async (req, res, next) => {
   try {
     const { email, password } = req.body;
     
     // Find user
-    const user = await db('users').where({ email }).first();
-    if (!user) {
+    const user = await db('users')
+      .where({ email })
+      .select('id', 'email', 'password_hash', 'first_name', 'last_name', 'is_active')
+      .first();
+    
+    // Check if user exists and is active
+    if (!user || !user.is_active) {
       return res.status(401).json({
         success: false,
         error: {
@@ -124,20 +132,9 @@ router.post('/login', validate(loginSchema), async (req, res, next) => {
       });
     }
     
-    // Check if user is active
-    if (!user.is_active) {
-      return res.status(401).json({
-        success: false,
-        error: {
-          code: 'ACCOUNT_INACTIVE',
-          message: 'Your account is inactive'
-        }
-      });
-    }
-    
     // Verify password
-    const passwordMatch = await bcrypt.compare(password, user.password_hash);
-    if (!passwordMatch) {
+    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+    if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
         error: {
@@ -149,25 +146,18 @@ router.post('/login', validate(loginSchema), async (req, res, next) => {
     
     // Generate tokens
     const accessToken = jwt.sign(
-      { userId: user.id, email: user.email },
-      process.env.JWT_SECRET || 'your_jwt_secret_key_here',
-      { expiresIn: process.env.JWT_EXPIRES_IN || '1d' }
+      { userId: user.id },
+      process.env.JWT_SECRET,
+      { expiresIn: '1d' }
     );
     
     const refreshToken = jwt.sign(
       { userId: user.id },
-      process.env.JWT_SECRET || 'your_jwt_secret_key_here',
-      { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
+      process.env.JWT_REFRESH_SECRET,
+      { expiresIn: '7d' }
     );
     
-    // Update last login
-    await db('users')
-      .where({ id: user.id })
-      .update({ 
-        last_login: new Date(),
-        updated_at: new Date()
-      });
-    
+    // Send response
     res.json({
       success: true,
       message: 'Login successful',
@@ -183,17 +173,37 @@ router.post('/login', validate(loginSchema), async (req, res, next) => {
       }
     });
   } catch (error) {
+    console.error('Login error:', error);
     next(error);
   }
 });
 
 // Get current user
-router.get('/me', async (req, res, next) => {
+router.get('/me', authenticate, async (req, res, next) => {
   try {
-    // This route will be protected by auth middleware
-    // which will add the user to the request
-    const user = req.user;
+    // Get user from database
+    const user = await db('users')
+      .where({ id: req.userId })
+      .select('id', 'email', 'first_name', 'last_name')
+      .first();
     
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'USER_NOT_FOUND',
+          message: 'User not found'
+        }
+      });
+    }
+    
+    // Get user organizations
+    const organizations = await db('organization_users')
+      .join('organizations', 'organization_users.organization_id', 'organizations.id')
+      .where('organization_users.user_id', req.userId)
+      .select('organizations.id', 'organizations.name', 'organization_users.role');
+    
+    // Send response
     res.json({
       success: true,
       data: {
@@ -201,10 +211,11 @@ router.get('/me', async (req, res, next) => {
         email: user.email,
         firstName: user.first_name,
         lastName: user.last_name,
-        organizations: user.organizations
+        organizations
       }
     });
   } catch (error) {
+    console.error('Get current user error:', error);
     next(error);
   }
 });
