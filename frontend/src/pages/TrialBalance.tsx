@@ -36,9 +36,9 @@ const TrialBalance: React.FC = () => {
     const fetchOrganizations = async () => {
       try {
         const response = await api.get('/organizations');
-        setOrganizations(response.data);
-        if (response.data.length > 0) {
-          setSelectedOrganization(response.data[0].id);
+        setOrganizations(response.data.data);
+        if (response.data.data.length > 0) {
+          setSelectedOrganization(response.data.data[0].id);
         }
       } catch (err) {
         setError('Failed to fetch organizations');
@@ -57,11 +57,11 @@ const TrialBalance: React.FC = () => {
         const formattedDate = asOfDate.toISOString().split('T')[0];
         
         const response = await api.get(
-          `/organizations/${selectedOrganization}/trial-balance`, 
+          `/organizations/${selectedOrganization}/trial-balance`,
           { params: { asOfDate: formattedDate } }
         );
-        
-        setTrialBalanceItems(response.data);
+
+        setTrialBalanceItems(response.data.data);
         setError('');
       } catch (err) {
         setError('Failed to fetch trial balance data');

@@ -32,12 +32,12 @@ const Dashboard = () => {
       try {
         setLoading(true);
         const orgResponse = await api.get('/organizations');
-        setOrganizations(orgResponse.data);
-        
-        if (orgResponse.data.length > 0) {
-          const orgId = orgResponse.data[0].id;
+        setOrganizations(orgResponse.data.data);
+
+        if (orgResponse.data.data.length > 0) {
+          const orgId = orgResponse.data.data[0].id;
           const statsResponse = await api.get(`/organizations/${orgId}/dashboard/stats`);
-          setStats(statsResponse.data);
+          setStats(statsResponse.data.data);
         }
       } catch (err) {
         setError('Failed to load dashboard data');

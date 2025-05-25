@@ -47,9 +47,9 @@ const ChartOfAccounts: React.FC = () => {
     const fetchOrganizations = async () => {
       try {
         const response = await api.get('/organizations');
-        setOrganizations(response.data);
-        if (response.data.length > 0) {
-          setSelectedOrganization(response.data[0].id);
+        setOrganizations(response.data.data);
+        if (response.data.data.length > 0) {
+          setSelectedOrganization(response.data.data[0].id);
         }
       } catch (err) {
         setError('Failed to fetch organizations');
@@ -66,7 +66,7 @@ const ChartOfAccounts: React.FC = () => {
       try {
         setLoading(true);
         const response = await api.get(`/organizations/${selectedOrganization}/accounts`);
-        setAccounts(response.data);
+        setAccounts(response.data.data);
         setError('');
       } catch (err) {
         setError('Failed to fetch accounts');
@@ -103,7 +103,7 @@ const ChartOfAccounts: React.FC = () => {
   const handleSubmit = async () => {
     try {
       const response = await api.post(`/organizations/${selectedOrganization}/accounts`, newAccount);
-      setAccounts([...accounts, response.data]);
+      setAccounts([...accounts, response.data.data]);
       handleCloseDialog();
     } catch (err) {
       setError('Failed to create account');

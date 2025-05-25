@@ -76,7 +76,7 @@ const createDefaultRoles = async (organizationId, trx) => {
  */
 const assignRoleToUser = async (organizationId, userId, roleId) => {
   // Check if user already has a role in this organization
-  const existingRole = await db('organization_users')
+  const existingRole = await db('user_organizations')
     .where({
       organization_id: organizationId,
       user_id: userId
@@ -85,7 +85,7 @@ const assignRoleToUser = async (organizationId, userId, roleId) => {
   
   if (existingRole) {
     // Update existing role
-    await db('organization_users')
+    await db('user_organizations')
       .where({
         organization_id: organizationId,
         user_id: userId
@@ -96,7 +96,7 @@ const assignRoleToUser = async (organizationId, userId, roleId) => {
       });
   } else {
     // Create new organization user with role
-    await db('organization_users').insert({
+    await db('user_organizations').insert({
       organization_id: organizationId,
       user_id: userId,
       role_id: roleId,

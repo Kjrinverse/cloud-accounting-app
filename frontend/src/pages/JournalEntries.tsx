@@ -53,9 +53,9 @@ const JournalEntries: React.FC = () => {
     const fetchOrganizations = async () => {
       try {
         const response = await api.get('/organizations');
-        setOrganizations(response.data);
-        if (response.data.length > 0) {
-          setSelectedOrganization(response.data[0].id);
+        setOrganizations(response.data.data);
+        if (response.data.data.length > 0) {
+          setSelectedOrganization(response.data.data[0].id);
         }
       } catch (err) {
         setError('Failed to fetch organizations');
@@ -75,9 +75,9 @@ const JournalEntries: React.FC = () => {
           api.get(`/organizations/${selectedOrganization}/journal-entries`),
           api.get(`/organizations/${selectedOrganization}/accounts`)
         ]);
-        
-        setJournalEntries(entriesResponse.data);
-        setAccounts(accountsResponse.data);
+
+        setJournalEntries(entriesResponse.data.data);
+        setAccounts(accountsResponse.data.data);
         setError('');
       } catch (err) {
         setError('Failed to fetch data');
@@ -151,7 +151,7 @@ const JournalEntries: React.FC = () => {
         ...newEntry,
         date: newEntry.date.toISOString().split('T')[0]
       });
-      setJournalEntries([...journalEntries, response.data]);
+      setJournalEntries([...journalEntries, response.data.data]);
       handleCloseDialog();
     } catch (err) {
       setError('Failed to create journal entry');

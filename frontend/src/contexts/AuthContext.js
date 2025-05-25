@@ -26,7 +26,7 @@ export const AuthProvider = ({ children }) => {
       // Check authentication with the correct endpoint
       const checkAuth = async () => {
         try {
-          const response = await api.get('/api/v1/auth/me');
+          const response = await api.get('/auth/me');
           setCurrentUser(response.data.data);
           console.log('Auth check successful:', response.data);
         } catch (err) {
@@ -47,8 +47,8 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       // Use the correct login endpoint
-      console.log('Attempting login with correct endpoint: /api/v1/auth/login');
-      const response = await api.post('/api/v1/auth/login', { email, password });
+      console.log('Attempting login with endpoint: /auth/login');
+      const response = await api.post('/auth/login', { email, password });
       console.log('Login successful:', response.data);
       
       // Handle successful login
@@ -68,10 +68,10 @@ export const AuthProvider = ({ children }) => {
   const register = async (email, password, firstName, lastName, phone = null) => {
     try {
       // Use the correct registration endpoint
-      console.log('Attempting registration with correct endpoint: /api/v1/auth/register');
+      console.log('Attempting registration with endpoint: /auth/register');
       console.log('Registration payload:', { email, password, firstName, lastName, phone });
       
-      const response = await api.post('/api/v1/auth/register', {
+      const response = await api.post('/auth/register', {
         email,
         password,
         firstName,
