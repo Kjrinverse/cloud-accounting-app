@@ -1,20 +1,3 @@
-// Original configuration might look like this
-module.exports = {
-  client: 'pg',
-  connection: {
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT || 5432,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    ssl: process.env.DB_SSL === 'true' ? true : false
-  },
-  pool: {
-    min: 2,
-    max: 10
-  }
-};
-
 // Update it to include these additional settings
 module.exports = {
   client: 'pg',
