@@ -67,7 +67,7 @@ module.exports = {
     propagateCreateError: false  // Don't crash on connection errors
   },
   debug: process.env.NODE_ENV === 'development'
-}
+},
     migrations: {
       tableName: 'knex_migrations',
       directory: '../migrations'
