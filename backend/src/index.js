@@ -18,6 +18,20 @@ const reportRoutes = require('./routes/report.routes');
 // Create Express app
 const app = express();
 
+// Simple health check endpoint that doesn't require database access
+app.get('/api/v1/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date(),
+    env: {
+      nodeEnv: process.env.NODE_ENV,
+      dbConfigured: !!process.env.DB_HOST,
+      dbHost: process.env.DB_HOST ? process.env.DB_HOST.substring(0, 5) + '...' : null,
+      dbName: process.env.DB_NAME
+    }
+  });
+});
+
 // Middleware
 app.use(helmet()); // Security headers
 app.use(cors({
