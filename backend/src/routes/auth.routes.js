@@ -99,8 +99,16 @@ router.post('/register', validate(registerSchema), async (req, res, next) => {
       }
     });
   } catch (error) {
-    // Rollback transaction on error if it exists
-    if (trx) await trx.rollback();
+   // Rollback transaction on error if it exists
+    if (trx) {
+      console.error('Rolling back transaction due to error');
+      try {
+        await trx.rollback();
+        console.log('Transaction rolled back successfully');
+      } catch (rollbackError) {
+        console.error('Error during rollback:', rollbackError);
+      }
+    }
     
     // Log detailed error information
     console.error('Registration error:', error);
