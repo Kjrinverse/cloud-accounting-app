@@ -11,6 +11,10 @@ const dotenv = require('dotenv');
 // Load environment variables
 dotenv.config();
 
+// Then validate environment variables
+const validateEnv = require('./validate-env');
+validateEnv();
+
 // Import routes (to be created)
 const authRoutes = require('./routes/auth.routes');
 const organizationRoutes = require('./routes/organization.routes');
