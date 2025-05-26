@@ -44,7 +44,7 @@ module.exports = {
     }
   },
   
- production: {
+production: {
   client: 'postgresql',
   connection: {
     host: process.env.DB_HOST,
@@ -54,23 +54,37 @@ module.exports = {
     password: process.env.DB_PASSWORD,
     ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
     connectionTimeout: 60000,
-    statement_timeout: 30000
+    statement_timeout: 30000,
+    acquireConnectionTimeout: 120000 // 2 minutes
   },
   pool: {
     min: 0,
-    max: 5,
+    max: 3, // Reduced from 5
     acquireTimeoutMillis: 60000,
     createTimeoutMillis: 60000,
     idleTimeoutMillis: 30000,
     reapIntervalMillis: 1000,
     createRetryIntervalMillis: 100,
-    propagateCreateError: false
+    propagateCreateError: false,
+    // Add afterCreate hook for connection validation
+    afterCreate: function(conn, done) {
+      // In this example we use pg driver's connection API
+      conn.query('SELECT 1', function(err) {
+        if (err) {
+          // Connection is bad, remove it from the pool
+          console.error('Error during connection validation:', err);
+          done(err, conn);
+        } else {
+          // Connection is good, make it available
+          console.log('New database connection validated successfully');
+          done(null, conn);
+        }
+      });
+    }
   },
   migrations: {
     tableName: 'knex_migrations',
     directory: '../migrations'
   },
   debug: process.env.NODE_ENV === 'development'
- }};
-   
-
+}
