@@ -1,0 +1,22 @@
+# Node.js dependencies
+node_modules/
+
+# Build outputs
+frontend/build/
+
+# Environment files
+.env*
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+*.tmp
+*.log
+.DS_Store
+
+# Mac and Linux generated files
+Thumbs.db
+
