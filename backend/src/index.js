@@ -71,6 +71,47 @@ app.get('/', (req, res) => {
   });
 });
 
+// Database test endpoint
+app.get('/api/v1/db-test', async (req, res) => {
+  try {
+    console.log('Database test endpoint called');
+    const result = await db.raw('SELECT 1 as test');
+    
+    // Get pool information if available
+    let poolInfo = {};
+    if (db.client && db.client.pool) {
+      const pool = db.client.pool;
+      poolInfo = {
+        min: pool.min,
+        max: pool.max,
+        numUsed: pool.numUsed ? pool.numUsed() : 'N/A',
+        numFree: pool.numFree ? pool.numFree() : 'N/A',
+        numPendingAcquires: pool.numPendingAcquires ? pool.numPendingAcquires() : 'N/A',
+        numPendingCreates: pool.numPendingCreates ? pool.numPendingCreates() : 'N/A'
+      };
+    }
+    
+    res.json({ 
+      success: true, 
+      result,
+      connectionPool: poolInfo,
+      environment: process.env.NODE_ENV,
+      dbHost: process.env.DB_HOST ? process.env.DB_HOST.substring(0, 5) + '...' : null,
+      dbName: process.env.DB_NAME,
+      timestamp: new Date().toISOString()
+    });
+    
+    console.log('Database test successful');
+  } catch (error) {
+    console.error('Database test error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
