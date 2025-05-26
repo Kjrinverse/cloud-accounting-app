@@ -161,7 +161,7 @@ router.post('/login', validate(loginSchema), async (req, res, next) => {
     
     const refreshToken = jwt.sign(
       { userId: user.id },
-      process.env.JWT_REFRESH_SECRET,
+      process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET, // Use JWT_SECRET as fallback
       { expiresIn: '7d' }
     );
     
